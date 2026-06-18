@@ -2,166 +2,128 @@ import streamlit as st
 import os
 import shutil
 import time
+import qrcode
+from io import BytesIO
 
-# --- 1. PROFESSIONAL THEME (Light Blue & White) ---
-st.set_page_config(page_title="SwiftDrop Cloud", page_icon="🚀", layout="centered")
+# --- 1. TOFFEE-STYLE UI ---
+st.set_page_config(page_title="ToffeeDrop Cloud", page_icon="🍬", layout="centered")
 
 st.markdown("""
     <style>
-    /* Main Background */
-    .stApp { background: #f8fbff !important; }
+    /* Professional Clean Look */
+    .stApp { background-color: #ffffff !important; }
     
-    /* Global Text Colors */
-    h1, h2, h3, p, label, .stMarkdown { color: #1e293b !important; }
+    /* Center everything */
+    .block-container { padding-top: 2rem !important; }
 
-    /* Custom Header */
-    .main-header {
-        background: linear-gradient(135deg, #1a7fe0, #5ba8f0);
+    /* Blue Highlight Theme */
+    h1, h2, h3 { color: #1a7fe0 !important; font-family: 'Inter', sans-serif; text-align: center; }
+    
+    /* Status Box */
+    .status-card {
+        background: #f0f7ff;
         padding: 20px;
         border-radius: 15px;
-        color: white !important;
+        border: 1px solid #c8ddf0;
         text-align: center;
-        margin-bottom: 25px;
-        box-shadow: 0 4px 15px rgba(26,127,224,0.2);
+        margin-bottom: 20px;
     }
     
-    /* Solid Professional Buttons */
+    /* Force Light Mode for Mobile */
+    input, label, .stMarkdown { color: #0d1b2a !important; }
+    
+    /* Large Mobile-Friendly Buttons */
     .stButton>button {
         background-color: #1a7fe0 !important;
         color: white !important;
-        border-radius: 10px !important;
-        border: none !important;
-        font-weight: 700 !important;
-        height: 3em !important;
-        width: 100%;
-    }
-
-    /* File Cards */
-    .file-card {
-        background: white;
-        padding: 15px;
-        border-radius: 12px;
-        border: 1px solid #e2e8f0;
-        margin-bottom: 10px;
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
+        border-radius: 50px !important;
+        height: 3.5em !important;
+        font-weight: bold !important;
+        font-size: 1.1rem !important;
     }
     
-    /* Fix for Mobile Dark Mode */
-    input, .stTextInput>div>div>input {
-        background-color: white !important;
-        color: black !important;
-    }
+    /* Progress bar styling */
+    .stProgress > div > div > div > div { background-color: #1a7fe0 !important; }
     </style>
     """, unsafe_allow_html=True)
 
-# --- 2. DIRECTORY LOGIC ---
-BASE_DIR = "/tmp/swiftdrop_rooms"
-if not os.path.exists(BASE_DIR):
-    os.makedirs(BASE_DIR)
+# --- 2. FAST STORAGE ---
+BASE_DIR = "/tmp/toffeedrop"
+if not os.path.exists(BASE_DIR): os.makedirs(BASE_DIR)
 
-def get_room_dir(room_id):
-    path = os.path.join(BASE_DIR, room_id)
-    if not os.path.exists(path): os.makedirs(path)
-    return path
-
-# --- 3. MAIN INTERFACE ---
 def main():
-    st.markdown('<div class="main-header"><h1>🚀 SwiftDrop Cloud</h1><p>Professional Secure File Transfer</p></div>', unsafe_allow_html=True)
+    st.write("### 🍬 ToffeeDrop")
+    st.caption("P2P-Inspired Cloud Transfer")
 
-    # Initialize Session States
-    if 'room_id' not in st.session_state: st.session_state.room_id = ""
-    if 'prepared_file' not in st.session_state: st.session_state.prepared_file = None
+    if 'room' not in st.session_state: st.session_state.room = ""
 
-    # Room Connection
-    col1, col2 = st.columns([3, 1])
-    room_input = col1.text_input("Room Code", value=st.session_state.room_id, placeholder="Enter 4 digits (e.g. 8888)")
-    if col2.button("Connect"):
-        st.session_state.room_id = room_input
-        st.rerun()
-
-    if not st.session_state.room_id:
-        st.info("💡 Enter a Room Code to pair devices. No account needed.")
+    # --- STEP 1: PAIRING (The Toffeeshare way) ---
+    if not st.session_state.room:
+        st.markdown('<div class="status-card">Select a Room Code to pair devices</div>', unsafe_allow_html=True)
+        room_code = st.text_input("Enter 4-Digit Code", placeholder="e.g. 9999")
+        if st.button("Create / Join Room"):
+            st.session_state.room = room_code
+            st.rerun()
         return
 
-    room_dir = get_room_dir(st.session_state.room_id)
-    st.success(f"Linked to Room: {st.session_state.room_id}")
+    room_path = os.path.join(BASE_DIR, st.session_state.room)
+    if not os.path.exists(room_path): os.makedirs(room_path)
 
-    tab_send, tab_get = st.tabs(["📤 Send Files", "📥 Receive Files"])
+    # --- STEP 2: QR CODE GENERATOR ---
+    # This lets you scan your PC screen with your phone to join instantly
+    with st.expander("📱 Scan to Join on Mobile"):
+        url = f"https://scrapper1000.streamlit.app/?room={st.session_state.room}" # Update with your real URL
+        qr = qrcode.make(url)
+        buf = BytesIO()
+        qr.save(buf)
+        st.image(buf, caption="Scan this with your phone camera")
 
-    # --- UPLOAD SECTION ---
+    st.success(f"📍 Room: {st.session_state.room}")
+
+    # --- STEP 3: THE BRIDGE (Transfer) ---
+    tab_send, tab_receive = st.tabs(["🚀 SEND", "📥 RECEIVE"])
+
     with tab_send:
-        st.write("### 1. Select Files")
-        uploaded_files = st.file_uploader("Upload will start automatically after selecting", accept_multiple_files=True)
-        
-        if uploaded_files:
-            st.write("### 2. Finalize Transfer")
-            if st.button("🚀 Push to Room"):
-                with st.status("Transferring to Cloud...", expanded=True) as status:
-                    for uploaded_file in uploaded_files:
-                        file_path = os.path.join(room_dir, uploaded_file.name)
-                        with open(file_path, "wb") as f:
-                            shutil.copyfileobj(uploaded_file, f)
-                        st.write(f"✅ {uploaded_file.name} saved.")
-                    status.update(label="Transfer Complete!", state="complete", expanded=False)
-                st.toast("Files are now available in the room!")
-                time.sleep(1)
+        # We use st.file_uploader but write to disk immediately
+        files = st.file_uploader("Drop files here", accept_multiple_files=True)
+        if files:
+            if st.button("START TRANSFER"):
+                bar = st.progress(0)
+                for i, f in enumerate(files):
+                    with open(os.path.join(room_path, f.name), "wb") as out:
+                        out.write(f.getbuffer())
+                    bar.progress((i + 1) / len(files))
+                st.toast("Files sent!")
+                time.sleep(0.5)
                 st.rerun()
 
-    # --- DOWNLOAD SECTION ---
-    with tab_get:
-        st.write("### Files in Room")
-        files = os.listdir(room_dir)
-        
-        if st.button("🔄 Refresh List"):
-            st.rerun()
+    with tab_receive:
+        room_files = os.listdir(room_path)
+        if st.button("🔄 Refresh"): st.rerun()
 
-        if not files:
-            st.write("No files shared yet.")
+        if not room_files:
+            st.info("Waiting for sender...")
         else:
-            for file_name in files:
-                file_path = os.path.join(room_dir, file_name)
-                size_mb = os.path.getsize(file_path) / (1024 * 1024)
+            for fn in room_files:
+                f_path = os.path.join(room_path, fn)
+                f_size = os.path.getsize(f_path) / (1024*1024)
                 
-                # Card Layout
-                with st.container():
-                    col_file, col_btn = st.columns([3, 1])
-                    col_file.markdown(f"📄 **{file_name}**  \n`{size_mb:.2f} MB`")
-                    
-                    # Logic to prevent multiple popups
-                    prep_id = f"prep_{file_name}"
-                    if st.session_state.prepared_file != file_name:
-                        if col_btn.button("Prepare ⬇️", key=f"btn_{file_name}"):
-                            with st.spinner("Processing..."):
-                                # Load into memory
-                                with open(file_path, "rb") as f:
-                                    st.session_state[prep_id] = f.read()
-                                st.session_state.prepared_file = file_name
-                            st.rerun()
-                    else:
-                        # Show the actual download button only when ready
-                        col_btn.download_button(
-                            label="Save ✅",
-                            data=st.session_state[prep_id],
-                            file_name=file_name,
-                            key=f"dl_{file_name}"
-                        )
-                        if st.button("Cancel", key=f"can_{file_name}"):
-                            st.session_state.prepared_file = None
-                            st.rerun()
-                st.divider()
+                # We use the most direct download trigger
+                with open(f_path, "rb") as f_data:
+                    st.download_button(
+                        label=f"⬇️ Download {fn} ({f_size:.1f}MB)",
+                        data=f_data,
+                        file_name=fn,
+                        key=fn,
+                        use_container_width=True
+                    )
 
-    # --- SIDEBAR ---
-    with st.sidebar:
-        st.write("### ⚙️ Room Settings")
-        if st.button("🗑️ Clear Room"):
-            if os.path.exists(room_dir):
-                shutil.rmtree(room_dir)
-            st.session_state.room_id = ""
-            st.rerun()
-        st.write("---")
-        st.caption("SwiftDrop Cloud v3.0 | Intern Project")
+    # --- FOOTER SETTINGS ---
+    st.write("---")
+    if st.button("🚪 Leave & Clear Room"):
+        if os.path.exists(room_path): shutil.rmtree(room_path)
+        st.session_state.room = ""
+        st.rerun()
 
 if __name__ == "__main__":
     main()

@@ -3,75 +3,60 @@ import os
 import shutil
 import time
 
-# --- 1. SETUP & THEME ---
-st.set_page_config(page_title="SwiftDrop Cloud", page_icon="🚀", layout="wide")
+# --- 1. PROFESSIONAL THEME (Light Blue & White) ---
+st.set_page_config(page_title="SwiftDrop Cloud", page_icon="🚀", layout="centered")
 
-# Force Light Theme (Light Blue & White)
 st.markdown("""
     <style>
     /* Main Background */
-    .stApp {
-        background: #f0f7ff !important;
+    .stApp { background: #f8fbff !important; }
+    
+    /* Global Text Colors */
+    h1, h2, h3, p, label, .stMarkdown { color: #1e293b !important; }
+
+    /* Custom Header */
+    .main-header {
+        background: linear-gradient(135deg, #1a7fe0, #5ba8f0);
+        padding: 20px;
+        border-radius: 15px;
+        color: white !important;
+        text-align: center;
+        margin-bottom: 25px;
+        box-shadow: 0 4px 15px rgba(26,127,224,0.2);
     }
     
-    /* Force Dark Text for everything */
-    h1, h2, h3, h4, h5, h6, p, label, span, .stMarkdown {
-        color: #0d1b2a !important;
-    }
-
-    /* Professional Blue Headers */
-    .main-title {
-        color: #1a7fe0 !important;
-        font-weight: 800;
-        font-size: 2.5rem;
-        margin-bottom: 0;
-    }
-
-    /* Fix Blackish boxes on Mobile */
-    div[data-testid="stExpander"], .stChatMessage, .stLoading {
-        background-color: #ffffff !important;
-        border: 1px solid #c8ddf0 !important;
-    }
-
-    /* Buttons: Solid Blue with White Text */
+    /* Solid Professional Buttons */
     .stButton>button {
         background-color: #1a7fe0 !important;
-        color: #ffffff !important;
-        font-weight: bold !important;
+        color: white !important;
+        border-radius: 10px !important;
         border: none !important;
-        border-radius: 10px !important;
-        padding: 10px 24px !important;
+        font-weight: 700 !important;
+        height: 3em !important;
         width: 100%;
     }
 
-    /* Download Buttons */
-    .stDownloadButton>button {
-        background-color: #00b96b !important;
-        color: #ffffff !important;
-        border-radius: 10px !important;
-        width: 100%;
-    }
-
-    /* File Uploader Box */
-    section[data-testid="stFileUploadDropzone"] {
-        background-color: #ffffff !important;
-        border: 2px dashed #1a7fe0 !important;
-        border-radius: 15px;
-    }
-
-    /* Custom File Card */
+    /* File Cards */
     .file-card {
-        background-color: #ffffff;
+        background: white;
         padding: 15px;
         border-radius: 12px;
-        border-left: 5px solid #1a7fe0;
-        box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+        border: 1px solid #e2e8f0;
         margin-bottom: 10px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+    
+    /* Fix for Mobile Dark Mode */
+    input, .stTextInput>div>div>input {
+        background-color: white !important;
+        color: black !important;
     }
     </style>
     """, unsafe_allow_html=True)
 
-# --- 2. STORAGE LOGIC ---
+# --- 2. DIRECTORY LOGIC ---
 BASE_DIR = "/tmp/swiftdrop_rooms"
 if not os.path.exists(BASE_DIR):
     os.makedirs(BASE_DIR)
@@ -81,122 +66,102 @@ def get_room_dir(room_id):
     if not os.path.exists(path): os.makedirs(path)
     return path
 
-# --- 3. MAIN APP ---
+# --- 3. MAIN INTERFACE ---
 def main():
-    st.markdown('<p class="main-title">🚀 SwiftDrop Cloud</p>', unsafe_allow_html=True)
-    st.markdown("<p style='color:#4a6080;'>Professional Cross-Device Transfer</p>", unsafe_allow_html=True)
+    st.markdown('<div class="main-header"><h1>🚀 SwiftDrop Cloud</h1><p>Professional Secure File Transfer</p></div>', unsafe_allow_html=True)
 
-    if 'room_id' not in st.session_state:
-        st.session_state.room_id = ""
+    # Initialize Session States
+    if 'room_id' not in st.session_state: st.session_state.room_id = ""
+    if 'prepared_file' not in st.session_state: st.session_state.prepared_file = None
 
-    # Room Connection Area
-    with st.container():
-        st.write("---")
-        col1, col2 = st.columns([3, 1])
-        room_input = col1.text_input("Enter 4-Digit Room Code", value=st.session_state.room_id, placeholder="e.g. 1234")
-        if col2.button("Connect"):
-            st.session_state.room_id = room_input
-            st.rerun()
+    # Room Connection
+    col1, col2 = st.columns([3, 1])
+    room_input = col1.text_input("Room Code", value=st.session_state.room_id, placeholder="Enter 4 digits (e.g. 8888)")
+    if col2.button("Connect"):
+        st.session_state.room_id = room_input
+        st.rerun()
 
     if not st.session_state.room_id:
-        st.info("👋 Use the same Room Code on both devices to start sharing.")
+        st.info("💡 Enter a Room Code to pair devices. No account needed.")
         return
 
     room_dir = get_room_dir(st.session_state.room_id)
-    st.success(f"✅ Linked to Room: {st.session_state.room_id}")
+    st.success(f"Linked to Room: {st.session_state.room_id}")
 
-    tab1, tab2 = st.tabs(["📤 Upload Files", "📥 Available Files"])
+    tab_send, tab_get = st.tabs(["📤 Send Files", "📥 Receive Files"])
 
-    # --- UPLOAD TAB ---
-    with tab1:
-        st.write("### Select Files to Send")
-        uploaded_files = st.file_uploader("", accept_multiple_files=True)
+    # --- UPLOAD SECTION ---
+    with tab_send:
+        st.write("### 1. Select Files")
+        uploaded_files = st.file_uploader("Upload will start automatically after selecting", accept_multiple_files=True)
         
-        if st.button("⚡ Start Fast Upload"):
-            if uploaded_files:
-                for uploaded_file in uploaded_files:
-                    file_path = os.path.join(room_dir, uploaded_file.name)
-                    
-                    # UI Components
-                    status = st.empty()
-                    p_bar = st.progress(0)
-                    m1, m2, m3 = st.columns(3)
-                    
-                    # File Processing with Visual Progress
-                    with open(file_path, "wb") as f:
-                        total_size = uploaded_file.size
-                        chunk_size = max(total_size // 20, 1024 * 100) # Dynamic chunks
-                        bytes_written = 0
-                        t0 = time.time()
-                        
-                        # We use getbuffer() then chunk it for the progress effect
-                        content = uploaded_file.getbuffer()
-                        
-                        while bytes_written < total_size:
-                            chunk = content[bytes_written : bytes_written + chunk_size]
-                            f.write(chunk)
-                            bytes_written += len(chunk)
-                            
-                            # Update UI
-                            elapsed = time.time() - t0
-                            speed = (bytes_written / (elapsed if elapsed > 0 else 0.01))
-                            eta = (total_size - bytes_written) / (speed if speed > 0 else 1)
-                            
-                            p_bar.progress(bytes_written / total_size)
-                            status.text(f"Processing: {uploaded_file.name}")
-                            m1.metric("Speed", f"{speed/1024/1024:.1f} MB/s")
-                            m2.metric("Done", f"{int(bytes_written/total_size*100)}%")
-                            m3.metric("ETA", f"{int(eta)}s")
-                            
-                            # Small artificial sleep to prevent UI crash & allow user to see bar
-                            time.sleep(0.05)
-                            
-                    st.toast(f"Finished: {uploaded_file.name}")
-                st.success("All files uploaded successfully!")
+        if uploaded_files:
+            st.write("### 2. Finalize Transfer")
+            if st.button("🚀 Push to Room"):
+                with st.status("Transferring to Cloud...", expanded=True) as status:
+                    for uploaded_file in uploaded_files:
+                        file_path = os.path.join(room_dir, uploaded_file.name)
+                        with open(file_path, "wb") as f:
+                            shutil.copyfileobj(uploaded_file, f)
+                        st.write(f"✅ {uploaded_file.name} saved.")
+                    status.update(label="Transfer Complete!", state="complete", expanded=False)
+                st.toast("Files are now available in the room!")
                 time.sleep(1)
                 st.rerun()
 
-    # --- DOWNLOAD TAB ---
-    with tab2:
-        st.write("### Files in this Room")
+    # --- DOWNLOAD SECTION ---
+    with tab_get:
+        st.write("### Files in Room")
+        files = os.listdir(room_dir)
+        
         if st.button("🔄 Refresh List"):
             st.rerun()
 
-        files = os.listdir(room_dir)
         if not files:
-            st.info("No files here yet.")
+            st.write("No files shared yet.")
         else:
             for file_name in files:
                 file_path = os.path.join(room_dir, file_name)
                 size_mb = os.path.getsize(file_path) / (1024 * 1024)
                 
-                # Professional Card UI
-                st.markdown(f"""
-                    <div class="file-card">
-                        <strong>📄 {file_name}</strong><br>
-                        <small>Size: {size_mb:.2f} MB</small>
-                    </div>
-                """, unsafe_allow_html=True)
-                
-                with open(file_path, "rb") as f:
-                    st.download_button(
-                        label=f"Download {file_name}",
-                        data=f,
-                        file_name=file_name,
-                        key=file_name
-                    )
+                # Card Layout
+                with st.container():
+                    col_file, col_btn = st.columns([3, 1])
+                    col_file.markdown(f"📄 **{file_name}**  \n`{size_mb:.2f} MB`")
+                    
+                    # Logic to prevent multiple popups
+                    prep_id = f"prep_{file_name}"
+                    if st.session_state.prepared_file != file_name:
+                        if col_btn.button("Prepare ⬇️", key=f"btn_{file_name}"):
+                            with st.spinner("Processing..."):
+                                # Load into memory
+                                with open(file_path, "rb") as f:
+                                    st.session_state[prep_id] = f.read()
+                                st.session_state.prepared_file = file_name
+                            st.rerun()
+                    else:
+                        # Show the actual download button only when ready
+                        col_btn.download_button(
+                            label="Save ✅",
+                            data=st.session_state[prep_id],
+                            file_name=file_name,
+                            key=f"dl_{file_name}"
+                        )
+                        if st.button("Cancel", key=f"can_{file_name}"):
+                            st.session_state.prepared_file = None
+                            st.rerun()
+                st.divider()
 
-    # --- SIDEBAR SETTINGS ---
+    # --- SIDEBAR ---
     with st.sidebar:
-        st.title("⚙️ Settings")
-        if st.button("🗑️ Reset Room"):
+        st.write("### ⚙️ Room Settings")
+        if st.button("🗑️ Clear Room"):
             if os.path.exists(room_dir):
                 shutil.rmtree(room_dir)
-            st.success("Room cleared.")
+            st.session_state.room_id = ""
             st.rerun()
-        
         st.write("---")
-        st.caption("SwiftDrop Cloud v2.0 - Professional Edition")
+        st.caption("SwiftDrop Cloud v3.0 | Intern Project")
 
 if __name__ == "__main__":
     main()

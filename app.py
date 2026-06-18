@@ -120,21 +120,49 @@ def main():
             st.rerun()
 
     with tab2:
-        st.subheader("Room Files")
-        if st.button("🔄 Refresh"): st.rerun()
-        
-        files = os.listdir(room_dir)
-        if not files:
-            st.info("No files in this room.")
-        else:
-            for file_name in files:
-                file_path = os.path.join(room_dir, file_name)
-                sz = os.path.getsize(file_path) / (1024*1024)
-                
+    st.subheader("📥 Available in Room")
+    if st.button("🔄 Refresh List"): 
+        st.rerun()
+    
+    files = os.listdir(room_dir)
+    if not files:
+        st.info("No files in this room.")
+    else:
+        for file_name in files:
+            file_path = os.path.join(room_dir, file_name)
+            sz_mb = os.path.getsize(file_path) / (1024 * 1024)
+            
+            # Create a professional card for each file
+            with st.container():
                 col_a, col_b = st.columns([3, 1])
-                col_a.write(f"📄 **{file_name}** ({sz:.2f} MB)")
-                with open(file_path, "rb") as f:
-                    col_b.download_button("Download", f, file_name=file_name, key=file_name)
+                col_a.markdown(f"📄 **{file_name}**  \n*{sz_mb:.2f} MB*")
+                
+                # UNIQUE KEY for each file to prevent Streamlit errors
+                prep_key = f"prep_{file_name}"
+                
+                # Step 1: User clicks to "Prepare" the data
+                if prep_key not in st.session_state:
+                    if col_b.button("Prepare ⬇️", key=f"btn_{file_name}"):
+                        with st.spinner("Preparing..."):
+                            # Read file into memory
+                            with open(file_path, "rb") as f:
+                                st.session_state[prep_key] = f.read()
+                        st.rerun()
+                
+                # Step 2: Once prepared, show the actual Download button
+                else:
+                    col_b.download_button(
+                        label="Save ✅",
+                        data=st.session_state[prep_key],
+                        file_name=file_name,
+                        mime="application/octet-stream",
+                        key=f"dl_{file_name}"
+                    )
+                    # Option to clear memory after preparing
+                    if st.button("Reset 🔄", key=f"reset_{file_name}"):
+                        del st.session_state[prep_key]
+                        st.rerun()
+            st.divider()
 
     with st.sidebar:
         st.header("Storage")
